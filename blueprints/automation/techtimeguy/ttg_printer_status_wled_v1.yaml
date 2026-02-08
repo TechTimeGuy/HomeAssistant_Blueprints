@@ -14,7 +14,6 @@ blueprint:
     - idle → solid green
     - unknown/unavailable → amber
   domain: automation
-  version: "1.0"
   source_url: https://raw.githubusercontent.com/TechTimeGuy/HomeAssistant_Blueprints/refs/heads/main/blueprints/automation/techtimeguy/ttg_printer_status_wled_v1.yaml
 
   input:
