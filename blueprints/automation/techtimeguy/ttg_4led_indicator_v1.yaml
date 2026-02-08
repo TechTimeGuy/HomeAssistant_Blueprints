@@ -7,6 +7,8 @@ blueprint:
     Intended for small self-contained WLED indicator boxes (ESP8266 D1 Mini + 4 WS2812B).
 
   domain: automation
+  version: "1.0"
+  source_url: https://raw.githubusercontent.com/TechTimeGuy/HomeAssistant_Blueprints/refs/heads/main/blueprints/automation/techtimeguy/ttg_4led_indicator_v1.yaml
   input:
     source_sensor:
       name: Sensor (numeric)
