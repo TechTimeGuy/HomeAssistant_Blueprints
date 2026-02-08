@@ -1,5 +1,5 @@
 blueprint:
-  name: TTG – 3D Printer Status → WLED Status LEDs (v3)
+  name: TTG – 3D Printer Status → WLED Status LEDs (v1)
   description: >
     Drive a WLED light (and optional WLED speed/intensity numbers) from a 3D printer
     status sensor.

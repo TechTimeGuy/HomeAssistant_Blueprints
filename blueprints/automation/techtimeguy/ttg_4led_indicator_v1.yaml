@@ -1,5 +1,5 @@
 blueprint:
-  name: TTG WLED 4-LED Indicator (Percent Effect)
+  name: TTG WLED 4-LED Indicator (Percent Effect) (v1)
   description: >
     Drives a 4-LED WLED indicator using the WLED "Percent" effect.
     Maps any numeric sensor into 0/25/50/75/100% steps (0–4 LEDs).
