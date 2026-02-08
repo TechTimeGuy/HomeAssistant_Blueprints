@@ -1,0 +1,385 @@
+blueprint:
+  name: TTG – 3D Printer Status → WLED Status LEDs (v3)
+  description: >
+    Drive a WLED light (and optional WLED speed/intensity numbers) from a 3D printer
+    status sensor.
+
+    Behavior (defaults match your working automation):
+    - running  → Scan (green) + optional set intensity/speed
+    - prepare/init/slicing → solid orange
+    - pause/paused → solid yellow
+    - finish/finished/complete → Solid Glitter (green) for N seconds, then Solid green
+    - failed/error → Blink (red)
+    - offline → configurable (turn off OR show a solid color)
+    - idle → solid green
+    - unknown/unavailable → amber
+  domain: automation
+  source_url: https://github.com/TechTimeGuy/HomeAssistant_Blueprints
+
+
+  input:
+    printer_status_entity:
+      name: Printer status sensor
+      selector:
+        entity:
+          domain:
+            - sensor
+            - text_sensor
+
+    wled_light:
+      name: WLED light entity
+      selector:
+        entity:
+          domain: light
+
+    brightness_default:
+      name: Default brightness
+      default: 12
+      selector:
+        number:
+          min: 0
+          max: 255
+          step: 1
+          mode: slider
+
+    brightness_alert:
+      name: Alert brightness
+      default: 50
+      selector:
+        number:
+          min: 0
+          max: 255
+          step: 1
+          mode: slider
+
+    brightness_finish:
+      name: Finish brightness
+      default: 100
+      selector:
+        number:
+          min: 0
+          max: 255
+          step: 1
+          mode: slider
+
+    finish_glitter_seconds:
+      name: Finish glitter duration (seconds)
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 60
+          step: 1
+          mode: slider
+
+    # ---------- Colors ----------
+    color_running:
+      name: Running color
+      default: [0, 255, 0]
+      selector:
+        color_rgb: {}
+
+    color_prepare:
+      name: Prepare/Init/Slicing color
+      default: [255, 140, 0]
+      selector:
+        color_rgb: {}
+
+    color_pause:
+      name: Paused color
+      default: [255, 255, 0]
+      selector:
+        color_rgb: {}
+
+    color_idle:
+      name: Idle color
+      default: [0, 255, 0]
+      selector:
+        color_rgb: {}
+
+    color_unknown:
+      name: Unknown color
+      default: [255, 191, 0]
+      selector:
+        color_rgb: {}
+
+    color_failed:
+      name: Failed color
+      default: [255, 0, 0]
+      selector:
+        color_rgb: {}
+
+    # ---------- Effects ----------
+    effect_running:
+      name: Running effect
+      default: "Scan"
+      selector:
+        text: {}
+
+    effect_finish:
+      name: Finish effect
+      default: "Solid Glitter"
+      selector:
+        text: {}
+
+    effect_failed:
+      name: Failed effect
+      default: "Blink"
+      selector:
+        text: {}
+
+    effect_solid:
+      name: Solid effect name
+      default: "Solid"
+      selector:
+        text: {}
+
+    prepare_states:
+      name: Prepare states list
+      default:
+        - prepare
+        - init
+        - slicing
+      selector:
+        object: {}
+
+    # ---------- Optional WLED Numbers ----------
+    set_wled_numbers:
+      name: Also set WLED intensity/speed numbers (optional)
+      default: true
+      selector:
+        boolean: {}
+
+    wled_intensity_number:
+      name: WLED intensity number entity (optional)
+      default: ""
+      selector:
+        entity:
+          domain: number
+
+    wled_speed_number:
+      name: WLED speed number entity (optional)
+      default: ""
+      selector:
+        entity:
+          domain: number
+
+    running_intensity_value:
+      name: Running intensity value
+      default: 130
+      selector:
+        number:
+          min: 0
+          max: 255
+          step: 1
+          mode: slider
+
+    running_speed_value:
+      name: Running speed value
+      default: 230
+      selector:
+        number:
+          min: 0
+          max: 255
+          step: 1
+          mode: slider
+
+    # ---------- Offline behavior ----------
+    offline_behavior:
+      name: Offline behavior
+      description: Choose what the LED does when the printer is offline
+      default: "off"
+      selector:
+        select:
+          options:
+            - "off"
+            - "color"
+
+    offline_color:
+      name: Offline color (if behavior = color)
+      default: [255, 0, 0]
+      selector:
+        color_rgb: {}
+
+    offline_brightness:
+      name: Offline brightness (if behavior = color)
+      default: 20
+      selector:
+        number:
+          min: 0
+          max: 255
+          step: 1
+          mode: slider
+
+mode: single
+
+trigger:
+  - platform: state
+    entity_id: !input printer_status_entity
+
+action:
+  - variables:
+      # Store inputs into vars first (so templates never see "!input")
+      printer_entity: !input printer_status_entity
+      wled_light_entity: !input wled_light
+      prepare_list: !input prepare_states
+
+      do_set_numbers: !input set_wled_numbers
+      intensity_ent: !input wled_intensity_number
+      speed_ent: !input wled_speed_number
+
+      offline_mode: !input offline_behavior
+
+      # SAFE: use printer_entity variable inside template
+      status: "{{ states(printer_entity) | lower }}"
+
+  - choose:
+      # ---------------- RUNNING ----------------
+      - conditions:
+          - condition: template
+            value_template: "{{ status == 'running' }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: "{{ wled_light_entity }}"
+            data:
+              effect: !input effect_running
+              rgb_color: !input color_running
+              brightness: !input brightness_default
+
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: >
+                      {{ do_set_numbers and intensity_ent|length > 0 and speed_ent|length > 0 }}
+                sequence:
+                  - service: number.set_value
+                    target:
+                      entity_id: "{{ intensity_ent }}"
+                    data:
+                      value: !input running_intensity_value
+                  - service: number.set_value
+                    target:
+                      entity_id: "{{ speed_ent }}"
+                    data:
+                      value: !input running_speed_value
+
+      # ---------------- PREPARE / INIT / SLICING ----------------
+      - conditions:
+          - condition: template
+            value_template: "{{ status in (prepare_list | map('lower') | list) }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: "{{ wled_light_entity }}"
+            data:
+              effect: !input effect_solid
+              rgb_color: !input color_prepare
+              brightness: !input brightness_default
+
+      # ---------------- PAUSE ----------------
+      - conditions:
+          - condition: template
+            value_template: "{{ status in ['pause', 'paused'] }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: "{{ wled_light_entity }}"
+            data:
+              effect: !input effect_solid
+              rgb_color: !input color_pause
+              brightness: !input brightness_default
+
+      # ---------------- FINISH ----------------
+      - conditions:
+          - condition: template
+            value_template: "{{ status in ['finish', 'finished', 'complete', 'completed'] }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: "{{ wled_light_entity }}"
+            data:
+              effect: !input effect_finish
+              rgb_color: !input color_idle
+              brightness: !input brightness_finish
+
+          - delay:
+              seconds: !input finish_glitter_seconds
+
+          - service: light.turn_on
+            target:
+              entity_id: "{{ wled_light_entity }}"
+            data:
+              effect: !input effect_solid
+              rgb_color: !input color_idle
+              brightness: !input brightness_default
+
+      # ---------------- FAILED ----------------
+      - conditions:
+          - condition: template
+            value_template: "{{ status in ['failed', 'error'] }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: "{{ wled_light_entity }}"
+            data:
+              effect: !input effect_failed
+              rgb_color: !input color_failed
+              brightness: !input brightness_alert
+
+      # ---------------- OFFLINE ----------------
+      - conditions:
+          - condition: template
+            value_template: "{{ status == 'offline' }}"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ offline_mode == 'off' }}"
+                sequence:
+                  - service: light.turn_off
+                    target:
+                      entity_id: "{{ wled_light_entity }}"
+            default:
+              - service: light.turn_on
+                target:
+                  entity_id: "{{ wled_light_entity }}"
+                data:
+                  effect: !input effect_solid
+                  rgb_color: !input offline_color
+                  brightness: !input offline_brightness
+
+      # ---------------- IDLE ----------------
+      - conditions:
+          - condition: template
+            value_template: "{{ status == 'idle' }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: "{{ wled_light_entity }}"
+            data:
+              effect: !input effect_solid
+              rgb_color: !input color_idle
+              brightness: !input brightness_default
+
+      # ---------------- UNKNOWN ----------------
+      - conditions:
+          - condition: template
+            value_template: "{{ status in ['unknown', 'unavailable', 'none'] }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: "{{ wled_light_entity }}"
+            data:
+              effect: !input effect_solid
+              rgb_color: !input color_unknown
+              brightness: !input brightness_default
+
+    default:
+      - service: light.turn_on
+        target:
+          entity_id: "{{ wled_light_entity }}"
+        data:
+          effect: !input effect_solid
+          rgb_color: !input color_unknown
+          brightness: !input brightness_default
